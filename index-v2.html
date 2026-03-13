@@ -1,0 +1,1107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <title>地图掷骰子 v2 - 奇遇之旅</title>
+  <!-- v2.2 任务内联 无公式 2025-03-10 -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    body {
+      background: #0f1624;
+      color: #eee;
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .controls {
+      padding: 14px 20px;
+      background: linear-gradient(180deg, #1a2744 0%, #0d1929 100%);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+      z-index: 50;
+    }
+    .controls label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      color: #8a9eba;
+    }
+    .controls select {
+      padding: 10px 16px;
+      font-size: 15px;
+      border: 2px solid #e94560;
+      border-radius: 8px;
+      background: #1a1a2e;
+      color: #eee;
+      cursor: pointer;
+      min-width: 160px;
+    }
+    .dice-btn {
+      padding: 14px 28px;
+      font-size: 17px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #e94560 0%, #ff6b6b 100%);
+      color: white;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .dice-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(233, 69, 96, 0.5);
+    }
+    .dice-btn:disabled {
+      opacity: 0.85;
+      cursor: wait;
+    }
+    .dice-btn .dice-icon {
+      display: inline-block;
+      font-size: 22px;
+      transition: transform 0.3s;
+    }
+    .dice-btn.spinning .dice-icon {
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .map-wrapper {
+      flex: 1;
+      min-height: 200px;
+      position: relative;
+      overflow: hidden;
+    }
+    #map-container {
+      width: 100%;
+      height: 100%;
+      min-height: 300px;
+    }
+    .status {
+      padding: 10px 20px;
+      font-size: 13px;
+      color: #8a9eba;
+      background: rgba(0,0,0,0.25);
+      border-top: 1px solid rgba(255,255,255,0.05);
+    }
+    .status.error { color: #ff6b6b; }
+    /* Result Card - 毛玻璃底部弹层 */
+    .result-card {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 24px 20px;
+      padding-bottom: calc(24px + env(safe-area-inset-bottom));
+      background: rgba(26, 39, 68, 0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-radius: 24px 24px 0 0;
+      box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+      z-index: 200;
+      flex-direction: column;
+      gap: 16px;
+      max-height: 55vh;
+      overflow-y: auto;
+    }
+    .result-card.mission-scroll-container { -webkit-overflow-scrolling: touch; }
+    .result-card.visible {
+      display: flex;
+      animation: slideUp 0.35s ease-out;
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .handbook-header {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e94560;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+    .handbook-section {
+      margin-bottom: 16px;
+    }
+    .handbook-section h4 {
+      font-size: 13px;
+      color: #8a9eba;
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+    .result-card .place-name {
+      font-size: 19px;
+      font-weight: 600;
+      color: #fff;
+    }
+    .result-card .place-addr {
+      font-size: 13px;
+      color: #8a9eba;
+    }
+    .meta-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+    .result-card .distance-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: rgba(29, 209, 161, 0.2);
+      border-radius: 20px;
+      font-size: 13px;
+      color: #1dd1a1;
+    }
+    .budget-badge {
+      padding: 4px 12px;
+      background: rgba(233, 69, 96, 0.2);
+      border-radius: 20px;
+      font-size: 13px;
+      color: #ff6b6b;
+    }
+    .distance-warn {
+      padding: 8px 12px;
+      background: rgba(255, 193, 7, 0.15);
+      border-radius: 8px;
+      font-size: 13px;
+      color: #ffc107;
+      margin-top: 8px;
+    }
+    .mission-list { padding-left: 20px; margin: 0; }
+    .mission-list li { margin-bottom: 6px; color: #ddd; line-height: 1.5; }
+    .restrict-section .global-buff {
+      background: linear-gradient(135deg, rgba(233,69,96,0.2), rgba(255,107,107,0.15));
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      color: #ff8a9e;
+      margin-bottom: 10px;
+    }
+    .restrict-list { padding-left: 20px; margin: 0; }
+    .restrict-list li { margin-bottom: 4px; color: #8a9eba; font-size: 14px; }
+    .side-list { padding-left: 20px; margin: 0; }
+    .side-list li { margin-bottom: 4px; color: #aabbcc; font-size: 14px; line-height: 1.5; }
+    .record-prompt { color: #6a7a9a; font-size: 14px; font-style: italic; }
+    .result-card .actions {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .result-card .actions button {
+      flex: 1;
+      min-width: 120px;
+      padding: 14px 20px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .result-card .actions button:hover {
+      transform: scale(1.02);
+    }
+    .result-card .btn-accept {
+      background: linear-gradient(135deg, #0f9b8e 0%, #1dd1a1 100%);
+      color: white;
+    }
+    .result-card .btn-redo {
+      background: rgba(255,255,255,0.1);
+      color: #eee;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+    .result-card .open-amap-link {
+      font-size: 13px;
+      color: #6eb5ff;
+      text-decoration: none;
+      margin-top: 4px;
+    }
+    .result-card .open-amap-link:hover { text-decoration: underline; }
+    /* 冒险模式状态条 */
+    .adventure-bar {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      padding: 12px 16px;
+      padding-top: calc(12px + env(safe-area-inset-top));
+      background: linear-gradient(180deg, rgba(15, 22, 36, 0.98) 0%, rgba(26, 39, 68, 0.95) 100%);
+      backdrop-filter: blur(12px);
+      z-index: 150;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .adventure-bar-inner { display: flex; flex-direction: column; gap: 8px; }
+    .adventure-dest { font-size: 16px; font-weight: 600; color: #fff; }
+    .adventure-buff {
+      font-size: 13px; color: #ff8a9e;
+      background: rgba(233, 69, 96, 0.15);
+      padding: 4px 10px; border-radius: 6px;
+      width: fit-content;
+    }
+    .adventure-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 4px; }
+    .btn-handbook {
+      padding: 8px 16px;
+      font-size: 14px;
+      background: rgba(29, 209, 161, 0.2);
+      color: #1dd1a1;
+      border: 1px solid rgba(29, 209, 161, 0.5);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-handbook:hover { background: rgba(29, 209, 161, 0.3); }
+    .btn-amap-nav {
+      padding: 8px 16px;
+      font-size: 14px;
+      background: linear-gradient(135deg, #e94560, #ff6b6b);
+      color: #fff;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .btn-amap-nav:hover { opacity: 0.9; }
+    .btn-finish {
+      padding: 8px 16px;
+      font-size: 14px;
+      background: rgba(255,255,255,0.1);
+      color: #8a9eba;
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-finish:hover { background: rgba(255,255,255,0.15); }
+    /* 手册弹层 */
+    .handbook-modal {
+      position: fixed; inset: 0;
+      z-index: 300;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .handbook-modal-mask {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.5);
+    }
+    .handbook-modal-content {
+      position: relative;
+      width: 100%;
+      max-height: 92vh;
+      background: linear-gradient(180deg, #1a2744 0%, #0d1929 100%);
+      border-radius: 20px 20px 0 0;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    .handbook-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .handbook-modal-header h3 { font-size: 18px; color: #fff; }
+    .handbook-close {
+      padding: 8px 14px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      border-radius: 8px;
+      color: #eee;
+      cursor: pointer;
+    }
+    .handbook-modal-body {
+      padding: 20px;
+      padding-bottom: 60px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      font-size: 14px;
+      line-height: 1.6;
+      -webkit-overflow-scrolling: touch;
+      flex: 1;
+      min-height: 0;
+    }
+    .handbook-scroll-hint {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: rgba(29, 209, 161, 0.2);
+      color: #1dd1a1;
+      font-size: 13px;
+      border-radius: 20px;
+      cursor: pointer;
+      border: 1px solid rgba(29, 209, 161, 0.4);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .handbook-scroll-hint:hover { background: rgba(29, 209, 161, 0.3); }
+    .handbook-modal-body h4 { color: #8a9eba; font-size: 13px; margin: 12px 0 8px; }
+    .handbook-modal-body ol, .handbook-modal-body ul { padding-left: 20px; }
+    .handbook-modal-body li { margin-bottom: 6px; color: #ddd; }
+    .controls.hidden { display: none; }
+    /* 冒险启动全屏动效 */
+    .adventure-launch-overlay {
+      position: fixed; inset: 0;
+      z-index: 500;
+      background: rgba(15, 22, 36, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      animation: fadeOut 1s ease-out 0.5s forwards;
+    }
+    .adventure-launch-overlay.hiding { pointer-events: none; }
+    .adventure-launch-text {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1dd1a1;
+      letter-spacing: 4px;
+      animation: pulse 0.6s ease-in-out 2;
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; visibility: hidden; }
+    }
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.08); }
+    }
+    /* 导航中悬浮挂件 */
+    .nav-floating-badge {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: rgba(29, 209, 161, 0.9);
+      color: #0f1624;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 24px;
+      box-shadow: 0 4px 20px rgba(29, 209, 161, 0.4);
+      z-index: 160;
+      display: none;
+    }
+    .nav-floating-badge.visible { display: block; animation: badgeIn 0.4s ease-out; }
+    @keyframes badgeIn {
+      from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    @media (max-width: 600px) {
+      .result-card { padding: 20px 16px; }
+      .result-card .place-name { font-size: 17px; }
+      .handbook-section .global-buff { font-size: 14px; }
+      .result-card .actions { flex-direction: column; }
+      .result-card .actions button { min-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="controls" id="controls">
+      <label>
+        <span>范围</span>
+        <select id="scope-select">
+          <option value="sixth-ring">北京市六环内</option>
+          <option value="shanhe-four">山河四省</option>
+          <option value="china">全中国</option>
+          <option value="world">全世界</option>
+        </select>
+      </label>
+      <button type="button" class="dice-btn" id="dice-btn">
+        <span class="dice-icon">🎲</span>
+        <span class="dice-text">掷骰子</span>
+      </button>
+    </div>
+    <div class="map-wrapper">
+      <div id="map-container"></div>
+    </div>
+    <div class="status" id="status">正在加载地图… <span style="opacity:0.5;font-size:11px">v2.2</span></div>
+  </div>
+
+  <!-- 冒险模式顶部状态条 -->
+  <div class="adventure-bar" id="adventure-bar" style="display:none;">
+    <div class="adventure-bar-inner">
+      <div class="adventure-dest">🎯 <span id="adventure-dest-name"></span></div>
+      <div class="adventure-buff">⚠️ 说话限 5 字 · 经费 50 元</div>
+      <div class="adventure-actions">
+        <button type="button" class="btn-handbook" id="btn-handbook">📖 展开手册</button>
+        <a class="btn-amap-nav" id="btn-amap-nav" href="#" target="_blank">去高德 App 导航</a>
+        <button type="button" class="btn-finish" id="btn-finish">完成冒险</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 手册弹层（冒险模式中可随时展开） -->
+  <div class="handbook-modal" id="handbook-modal" style="display:none;">
+    <div class="handbook-modal-mask" id="handbook-mask"></div>
+    <div class="handbook-modal-content">
+      <div class="handbook-modal-header">
+        <h3>📖 冒险手册</h3>
+        <button type="button" class="handbook-close" id="handbook-close">✕</button>
+      </div>
+      <div class="handbook-modal-body" id="handbook-body"></div>
+      <button type="button" class="handbook-scroll-hint" id="handbook-scroll-down">↓ 向下滑动</button>
+    </div>
+  </div>
+
+  <!-- 冒险启动全屏动效 -->
+  <div class="adventure-launch-overlay" id="adventure-launch-overlay" style="display:none;">
+    <div class="adventure-launch-text">🚀 冒险启动</div>
+  </div>
+  <!-- 导航中悬浮挂件 -->
+  <div class="nav-floating-badge" id="nav-floating-badge">📍 导航中</div>
+
+  <div class="result-card mission-scroll-container" id="result-card">
+    <div class="handbook-header">📖 冒险手册</div>
+    <section class="handbook-section dest-section">
+      <h4>【今日目的地】</h4>
+      <div class="place-name" id="result-place-name"></div>
+      <div class="place-addr" id="result-place-addr"></div>
+      <div class="meta-row">
+        <span class="distance-badge" id="result-distance"></span>
+        <span class="budget-badge" id="result-budget"></span>
+      </div>
+      <div class="distance-warn" id="distance-warn" style="display:none;"></div>
+      <a class="open-amap-link" id="open-amap-link" href="#" target="_blank" style="display:none;">在高德 App 中打开</a>
+    </section>
+    <section class="handbook-section">
+      <h4>【主线任务】</h4>
+      <ol class="mission-list" id="result-main"></ol>
+    </section>
+    <section class="handbook-section" id="side-section" style="display:none;">
+      <h4>【支线任务】</h4>
+      <ul class="side-list" id="result-side"></ul>
+    </section>
+    <section class="handbook-section restrict-section">
+      <h4>【额外限制】</h4>
+      <p class="global-buff">⚠️ 今日与路人说话必须严格限制为每句 <strong>5</strong> 个字</p>
+      <ul class="restrict-list" id="result-restrict"></ul>
+    </section>
+    <section class="handbook-section" id="challenge-section" style="display:none;">
+      <h4>【挑战题】</h4>
+      <p id="result-challenge"></p>
+    </section>
+    <section class="handbook-section" id="hidden-section" style="display:none;">
+      <h4>【隐藏任务】</h4>
+      <p id="result-hidden"></p>
+    </section>
+    <section class="handbook-section">
+      <h4>【记录】</h4>
+      <p class="record-prompt">今天最新奇的事是什么？</p>
+    </section>
+    <div class="actions">
+      <button type="button" class="btn-accept" id="btn-accept">接受挑战</button>
+      <button type="button" class="btn-redo" id="btn-redo">重新掷骰子</button>
+    </div>
+  </div>
+
+  <script src="https://webapi.amap.com/loader.js"></script>
+  <script>
+    // ========== 任务引擎（内联，避免 missionLogic.js 缓存） ==========
+    (function() {
+      async function getBatteryX() {
+        try {
+          const battery = await navigator.getBattery();
+          const level = battery.level ?? 0;
+          const pct = Math.floor(level * 100);
+          const tens = Math.floor(pct / 10);
+          const units = pct % 10;
+          const X = Math.min(18, tens + units);
+          return { X, steps: 50 * X };
+        } catch (_) { return { X: 9, steps: 450 }; }
+      }
+      function replaceVars(text, vars) {
+        return Object.entries(vars).reduce((s, [k, v]) => s.replace(new RegExp('\\{' + k + '\\}', 'g'), String(v)), text);
+      }
+      const SHOP_TYPES = ['书店','展览馆','咖啡店','花店','奶茶店','甜品店','面包房','旧货市场'];
+      const TASK_SETS = {
+        shop: { name: '探店风', main: [
+          '在{place}周边 200–500 米内找一个地标（立交桥、雕塑、店招），摆一个从未在社交媒体发过的姿势打卡合影。',
+          '关闭导航 App，在{place}附近找公交站，下一班车不管去哪都上车坐 1 站。',
+          '下车后朝车尾方向行走 {steps} 步。',
+          '用不超过 5 个字问路人「最近甜品店在哪」，按 TA 说的去，买一份从没吃过的东西。',
+          '找一家你从没去过的{shop}，在里面待满 15 分钟，观察并拍 3 张照片。',
+          '在{street}找一条从未走过的巷子或小路，从头走到尾。',
+          '在{place}找一个红色遮阳伞或代表性店招，完成「冒险契约」风格合影。'
+        ]},
+        nature: { name: '自然风', main: [
+          '在{place}东侧 200–500 米内寻找标志物（桥墩、雕塑、大树），摆一个从未摆过的姿势完成打卡。',
+          '关闭导航，在{place}附近找公交站，下一班车直接上车坐 1 站。',
+          '下车后朝车尾方向行走 {steps} 步。',
+          '问路人（限 5 字）「甜品店在哪」，去那里买一份从没吃过的东西。',
+          '在{place}找一棵你认为最有故事的树或建筑，与它「对话」姿势合影。',
+          '买一份当地小吃，找一个景色最好的地方吃掉。',
+          '给同伴拍一张「电影海报风格」的照片。'
+        ]},
+        urban: { name: '城市冒险风', main: [
+          '在{place}周边 200–500 米内找一个地标打卡，拍一张此前从未摆过的姿势。',
+          '关闭导航 App，随机找公交站，不管下一辆公交是什么都上车坐 1 站。',
+          '下车后朝车尾方向行走 {steps} 步。',
+          '通过问路人找到最近的{shop}，买一个从没吃过/用过的东西。',
+          '在地图上以{place}为中心，步行 20 分钟内能到的范围随机选一个点，让对方用 10 个「是/否」问题猜出并带你去。',
+          '问一个路人「这附近最有意思的地方是哪儿？」，按 TA 说的去一趟。',
+          '在{place}找一个红色遮阳伞或地标，完成冒险契约合影。'
+        ]}
+      };
+      const HIDDEN_TEMPLATES = [
+        '街景寻觅：一方提供街景图，对方 20 分钟内找出拍摄地点并拍同样角度。完成 +20 元经费。',
+        '勇往直前：一方选定一店不告知对方，给一个方向，对方带你直行（可停不可转弯回头），10 分钟内到达。失败方给胜方买小奖品。',
+        '勇往直前：10 分钟内不准回头，走到路尽头找一家店买小奖品。',
+        '盲选午餐：闭眼在地图上点一个点，去最近的那家店吃东西。',
+        '双人寻踪：一方选地图 2km 内某处写在手机里，对方用 10 个「是/否」问题找到并带你去。失败方请客下一顿。'
+      ];
+      window.MissionLogic = {
+        generateTasksAsync: async function(poi) {
+          const placeName = poi.name || '目的地';
+          const addr = (poi.pname || '') + (poi.address || '') || '';
+          const street = addr.match(/[\u4e00-\u9fa5]{2,8}(?:街|路|道|巷|胡同|镇|乡)/)?.[0] || '附近街道';
+          const shop = SHOP_TYPES[Math.floor(Math.random() * SHOP_TYPES.length)];
+          const { steps } = await getBatteryX();
+          const vars = { place: placeName, street, shop, steps, budget: 50, words: 5 };
+          const setKey = ['shop','nature','urban'][Math.floor(Math.random()*3)];
+          const taskSet = TASK_SETS[setKey];
+          const main = taskSet.main.map(t => replaceVars(t, vars));
+          let hidden = Math.random() < 0.6 ? HIDDEN_TEMPLATES[Math.floor(Math.random()*HIDDEN_TEMPLATES.length)] : null;
+          return { main, side: [], restrictions: ['今日与路人说话必须严格限制为每句 5 个字。','今日初始经费 50 元，全程只用支付宝支付。'], challenge: null, hidden, budget: 50, words: 5, steps };
+        }
+      };
+    })();
+  </script>
+  <script>
+    const AMAP_KEY = 'e9c5ba1d98a820acf9f1ae966248414b';
+    const AMAP_SECURITY_CODE = 'dd4658a8d75823973b579f05d5296530';
+    window._AMapSecurityConfig = { securityJsCode: AMAP_SECURITY_CODE };
+
+    // 六环 bounds（从多边形计算）
+    const SIXTH_RING_POLYGON = [
+      [116.072, 39.714], [116.075, 39.705], [116.078, 39.695], [116.099, 39.688], [116.122, 39.688],
+      [116.167, 39.685], [116.202, 39.684], [116.275, 39.682], [116.37, 39.701], [116.415, 39.711],
+      [116.459, 39.715], [116.516, 39.729], [116.543, 39.734], [116.604, 39.749], [116.627, 39.769],
+      [116.648, 39.788], [116.665, 39.806], [116.673, 39.815], [116.685, 39.824], [116.691, 39.832],
+      [116.697, 39.841], [116.707, 39.864], [116.712, 39.874], [116.715, 39.884], [116.718, 39.904],
+      [116.718, 39.922], [116.714, 39.938], [116.715, 39.952], [116.716, 39.965], [116.709, 39.993],
+      [116.7, 40.005], [116.69, 40.016], [116.661, 40.057], [116.656, 40.064], [116.652, 40.069],
+      [116.643, 40.078], [116.64, 40.082], [116.637, 40.086], [116.633, 40.091], [116.63, 40.103],
+      [116.629, 40.107], [116.627, 40.112], [116.624, 40.121], [116.623, 40.132], [116.617, 40.142],
+      [116.613, 40.145], [116.608, 40.146], [116.601, 40.147], [116.584, 40.149], [116.542, 40.152],
+      [116.501, 40.161], [116.468, 40.164], [116.399, 40.164], [116.344, 40.178], [116.279, 40.181],
+      [116.173, 40.175], [116.15, 40.161], [116.138, 40.126], [116.129, 40.086], [116.11, 40.066],
+      [116.08, 40.029], [116.071, 39.98], [116.099, 39.94], [116.122, 39.909], [116.122, 39.885],
+      [116.11, 39.859], [116.096, 39.814], [116.091, 39.797], [116.084, 39.787], [116.077, 39.75],
+      [116.073, 39.734]
+    ];
+    function getSixthRingBounds(AMap) {
+      const lngs = SIXTH_RING_POLYGON.map(p => p[0]);
+      const lats = SIXTH_RING_POLYGON.map(p => p[1]);
+      return new AMap.Bounds(
+        [Math.min(...lngs), Math.min(...lats)],
+        [Math.max(...lngs), Math.max(...lats)]
+      );
+    }
+
+    const PROVINCES_SHANHE = ['山东省', '河南省', '山西省', '河北省'];
+    const CITIES_CHINA = ['北京', '上海', '广州', '深圳', '杭州', '成都', '武汉', '南京', '西安', '重庆', '天津', '苏州', '青岛', '长沙', '厦门', '大连', '沈阳', '哈尔滨', '昆明', '宁波'];
+
+    // 安全区域限定：公园|咖啡馆|书店|商场|艺术馆|特色街道
+    const KEYWORDS_SAFE = ['公园', '咖啡馆', '书店', '商场', '艺术馆', '特色街道'];
+    // 需排除的偏僻/危险类型
+    const UNSAFE_POI_PATTERN = /山头|建筑工地|荒地|偏僻|水库|军事|禁区/;
+
+    const GLOBAL_MIRACLES = [
+      { name: '巴黎埃菲尔铁塔', lng: 2.2945, lat: 48.8584 },
+      { name: '冰岛蓝湖', lng: -22.4536, lat: 63.8804 },
+      { name: '东京涩谷十字路口', lng: 139.7006, lat: 35.6595 },
+      { name: '纽约时代广场', lng: -73.9851, lat: 40.7580 },
+      { name: '悉尼歌剧院', lng: 151.2153, lat: -33.8568 },
+      { name: '罗马斗兽场', lng: 12.4924, lat: 41.8902 },
+      { name: '伦敦大本钟', lng: -0.1246, lat: 51.5007 },
+      { name: '迪拜哈利法塔', lng: 55.2720, lat: 25.1972 },
+      { name: '圣托里尼蓝顶教堂', lng: 25.4253, lat: 36.4281 },
+      { name: '京都清水寺', lng: 135.7850, lat: 34.9949 },
+      { name: '布拉格查理大桥', lng: 14.4127, lat: 50.0865 },
+      { name: '巴塞罗那圣家堂', lng: 2.1746, lat: 41.4036 },
+      { name: '威尼斯圣马可广场', lng: 12.3390, lat: 45.4342 },
+      { name: '摩洛哥撒哈拉沙漠', lng: -5.5, lat: 31.0 },
+      { name: '埃及金字塔', lng: 31.1342, lat: 29.9792 },
+      { name: '土耳其卡帕多奇亚', lng: 34.8353, lat: 38.6431 },
+      { name: '新西兰皇后镇', lng: 168.6626, lat: -45.0312 },
+      { name: '挪威卑尔根', lng: 5.3242, lat: 60.3913 },
+      { name: '阿根廷伊瓜苏瀑布', lng: -54.4514, lat: -25.6953 },
+      { name: '新加坡滨海湾', lng: 103.8602, lat: 1.2816 }
+    ];
+
+    function pickRandom(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function isPoiUnsafe(poi) {
+      const str = (poi.type || '') + (poi.typecode || '') + (poi.name || '');
+      return UNSAFE_POI_PATTERN.test(str);
+    }
+
+    function checkTransitAccess(center, scope) {
+      if (scope === 'world') return Promise.resolve(true);
+      return new Promise((resolve) => {
+        if (!AMapRef) return resolve(true);
+        const isFar = scope === 'china';
+        if (isFar) {
+          const search = new AMapRef.PlaceSearch({ pageSize: 5, autoFitView: false });
+          search.searchNearBy('机场', center, 10000, (status, result) => {
+            const has = status === 'complete' && result.poiList && result.poiList.pois && result.poiList.pois.length > 0;
+            if (has) return resolve(true);
+            search.searchNearBy('高铁站', center, 10000, (st2, res2) => {
+              resolve(st2 === 'complete' && res2.poiList && res2.poiList.pois && res2.poiList.pois.length > 0);
+            });
+          });
+          return;
+        }
+        const search = new AMapRef.PlaceSearch({ pageSize: 5, autoFitView: false });
+        search.searchNearBy('公交站', center, 500, (status, result) => {
+          const hasBus = status === 'complete' && result.poiList && result.poiList.pois && result.poiList.pois.length > 0;
+          if (hasBus) return resolve(true);
+          search.searchNearBy('地铁站', center, 500, (st2, res2) => {
+            const hasSubway = st2 === 'complete' && res2.poiList && res2.poiList.pois && res2.poiList.pois.length > 0;
+            resolve(hasSubway);
+          });
+        });
+      });
+    }
+
+    let map = null;
+    let AMapRef = null;
+    let walking = null;
+    let resultMarker = null;
+    let isRolling = false;
+    let lastResult = null;
+    let userPosition = null;
+
+    function updateStatus(text) {
+      const el = document.getElementById('status');
+      if (!el) return;
+      const ver = '<span style="opacity:0.5;font-size:11px">v2.2</span>';
+      el.innerHTML = (text || '地图已加载') + ' ' + ver;
+      el.classList.remove('error');
+    }
+
+    function setDiceState(rolling) {
+      const btn = document.getElementById('dice-btn');
+      const textEl = btn.querySelector('.dice-text');
+      isRolling = rolling;
+      btn.disabled = rolling;
+      btn.classList.toggle('spinning', rolling);
+      textEl.textContent = rolling ? '奇遇生成中...' : '掷骰子';
+    }
+
+    function flyTo(map, lng, lat, zoom = 15) {
+      if (map.flyTo) {
+        map.flyTo({ center: [lng, lat], zoom });
+      } else {
+        map.setZoomAndCenter(zoom, [lng, lat]);
+      }
+    }
+
+    function doVibrate() {
+      if (navigator.vibrate) navigator.vibrate(100);
+    }
+
+    function showResultCard(poi, tasks, distText, distKm, lng, lat) {
+      document.getElementById('result-place-name').textContent = poi.name || '目的地';
+      document.getElementById('result-place-addr').textContent = (poi.pname || '') + (poi.address || '') || '—';
+      document.getElementById('result-distance').textContent = distText || '—';
+      document.getElementById('result-budget').textContent = '今日经费 ' + (tasks.budget || 50) + ' 元';
+
+      const warnEl = document.getElementById('distance-warn');
+      if (distKm && !isNaN(distKm) && distKm > DISTANCE_WARN_KM) {
+        warnEl.textContent = '目的地较远（约 ' + distKm.toFixed(0) + ' km），可点击「重新掷骰子」换一个更近的';
+        warnEl.style.display = 'block';
+      } else {
+        warnEl.style.display = 'none';
+      }
+
+      const mainEl = document.getElementById('result-main');
+      mainEl.innerHTML = (tasks.main || []).map(m => '<li>' + m + '</li>').join('');
+
+      const sideEl = document.getElementById('side-section');
+      if (tasks.side && tasks.side.length) {
+        sideEl.style.display = 'block';
+        document.getElementById('result-side').innerHTML = tasks.side.map(s => '<li>' + s + '</li>').join('');
+      } else {
+        sideEl.style.display = 'none';
+      }
+
+      const restrictEl = document.getElementById('result-restrict');
+      const restr = (tasks.restrictions || []).filter(r => !/个字/.test(r));
+      restrictEl.innerHTML = restr.map(r => '<li>' + r + '</li>').join('');
+
+      const chSection = document.getElementById('challenge-section');
+      if (tasks.challenge) {
+        chSection.style.display = 'block';
+        document.getElementById('result-challenge').textContent = tasks.challenge;
+      } else {
+        chSection.style.display = 'none';
+      }
+
+      const hidSection = document.getElementById('hidden-section');
+      if (tasks.hidden) {
+        hidSection.style.display = 'block';
+        document.getElementById('result-hidden').textContent = tasks.hidden;
+      } else {
+        hidSection.style.display = 'none';
+      }
+
+      const link = document.getElementById('open-amap-link');
+      link.href = 'https://uri.amap.com/navigation?to=' + lng.toFixed(5) + ',' + lat.toFixed(5) + ',' + encodeURIComponent(poi.name || '目的地') + '&mode=walking';
+      link.style.display = 'inline';
+      const card = document.getElementById('result-card');
+      card.classList.add('visible');
+      requestAnimationFrame(() => {
+        card.scrollTop = 0;
+      });
+    }
+
+    function hideResultCard() {
+      document.getElementById('result-card').classList.remove('visible');
+    }
+
+    function searchByPlaceSearch(options, retry = false) {
+      return new Promise((resolve, reject) => {
+        if (!AMapRef) return reject(new Error('Map not ready'));
+        const { keyword, city, citylimit, bounds, pageIndex } = options;
+        const config = {
+          pageSize: 20,
+          pageIndex: pageIndex || Math.floor(Math.random() * 10) + 1,
+          map: map,
+          autoFitView: false
+        };
+        if (city) config.city = city;
+        if (citylimit !== undefined) config.citylimit = citylimit;
+        const search = new AMapRef.PlaceSearch(config);
+
+        const cb = (status, result) => {
+          if (status === 'complete' && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+            const pois = result.poiList.pois.filter(p => !isPoiUnsafe(p));
+            if (pois.length === 0) {
+              if (retry) reject(new Error('NO_RESULT'));
+              else searchByPlaceSearch(options, true).then(resolve).catch(reject);
+            } else {
+              resolve(pickRandom(pois));
+            }
+          } else if (retry) {
+            reject(new Error('NO_RESULT'));
+          } else {
+            searchByPlaceSearch(options, true).then(resolve).catch(reject);
+          }
+        };
+        if (bounds) {
+          search.searchInBounds(keyword, bounds, cb);
+        } else {
+          search.search(keyword, cb);
+        }
+      });
+    }
+
+    function doSearch(retry = false) {
+      const scope = document.getElementById('scope-select').value;
+      const keyword = pickRandom(KEYWORDS_SAFE);
+
+      if (scope === 'world') {
+        const m = pickRandom(GLOBAL_MIRACLES);
+        const poi = { name: m.name, location: { lng: m.lng, lat: m.lat }, type: '风景名胜', address: '' };
+        return Promise.resolve(poi);
+      }
+
+      if (scope === 'sixth-ring') {
+        return searchByPlaceSearch({
+          keyword,
+          city: '北京',
+          citylimit: true,
+          bounds: AMapRef ? getSixthRingBounds(AMapRef) : null,
+          pageIndex: Math.floor(Math.random() * 10) + 1
+        }, retry);
+      }
+
+      if (scope === 'shanhe-four') {
+        const province = pickRandom(PROVINCES_SHANHE);
+        return searchByPlaceSearch({
+          keyword,
+          city: province,
+          citylimit: true,
+          pageIndex: Math.floor(Math.random() * 10) + 1
+        }, retry);
+      }
+
+      if (scope === 'china') {
+        const city = pickRandom(CITIES_CHINA);
+        return searchByPlaceSearch({
+          keyword,
+          city,
+          citylimit: true,
+          pageIndex: Math.floor(Math.random() * 10) + 1
+        }, retry);
+      }
+
+      return searchByPlaceSearch({
+        keyword,
+        city: '北京',
+        citylimit: true,
+        bounds: AMapRef ? getSixthRingBounds(AMapRef) : null,
+        pageIndex: Math.floor(Math.random() * 10) + 1
+      }, retry);
+    }
+
+    function formatDistance(m) {
+      if (m < 1000) return '约 ' + Math.round(m) + ' m';
+      return '约 ' + (m / 1000).toFixed(1) + ' km';
+    }
+
+    const TRANSIT_RETRY_MAX = 5;
+    const DISTANCE_WARN_KM = 50;
+
+    async function rollDice() {
+      if (!map || isRolling) return;
+      setDiceState(true);
+      hideResultCard();
+      const scrollEl = document.querySelector('.mission-scroll-container') || document.getElementById('result-card');
+      if (scrollEl) scrollEl.scrollTop = 0;
+      const handbookBody = document.getElementById('handbook-body');
+      if (handbookBody) handbookBody.scrollTop = 0;
+      if (resultMarker && map) { map.remove(resultMarker); resultMarker = null; }
+      if (walking && walking.clear) walking.clear();
+      updateStatus('正在寻找奇遇目的地…');
+
+      let poi = null;
+      let transitRetries = 0;
+
+      try {
+        while (transitRetries < TRANSIT_RETRY_MAX) {
+          poi = await doSearch(transitRetries > 0);
+          const loc = poi.location || poi;
+          const lng = typeof loc.lng === 'number' ? loc.lng : (loc.Q || loc[0]);
+          const lat = typeof loc.lat === 'number' ? loc.lat : (loc.P || loc[1]);
+          const scope = document.getElementById('scope-select').value;
+
+          const accessible = await checkTransitAccess([lng, lat], scope);
+          if (accessible) break;
+          transitRetries++;
+          updateStatus('校验公共交通…第 ' + transitRetries + ' 次');
+        }
+        if (!poi) throw new Error('NO_RESULT');
+
+        const loc = poi.location || poi;
+        const lng = typeof loc.lng === 'number' ? loc.lng : (loc.Q || loc[0]);
+        const lat = typeof loc.lat === 'number' ? loc.lat : (loc.P || loc[1]);
+
+        if (!userPosition) {
+          const geo = new AMapRef.Geolocation({ enableHighAccuracy: false, timeout: 4000 });
+          await new Promise((res, rej) => {
+            geo.getCurrentPosition((st, r) => {
+              if (st === 'complete' && r && r.position) {
+                userPosition = [r.position.lng, r.position.lat];
+                res();
+              } else res();
+            });
+          });
+        }
+
+        const distM = userPosition ? AMapRef.GeometryUtil.distance(userPosition, [lng, lat]) : 0;
+        const distKm = distM / 1000;
+        const distText = distM ? formatDistance(distM) : '—';
+
+        const tasks = await (typeof MissionLogic !== 'undefined' && MissionLogic.generateTasksAsync
+          ? MissionLogic.generateTasksAsync(poi)
+          : Promise.resolve({ main: ['在目的地完成一次探索'], side: [], restrictions: [], hidden: null, budget: 50 }));
+
+        if (resultMarker && map) map.remove(resultMarker);
+        resultMarker = new AMapRef.Marker({
+          position: [lng, lat],
+          content: '<div style="width:40px;height:52px;background:url(https://webapi.amap.com/theme/v1.3/markers/n/mark_r.png) no-repeat;background-size:contain"></div>',
+          offset: new AMapRef.Pixel(-20, -52),
+          map: map
+        });
+
+        lastResult = { poi, lng, lat, tasks, distKm, distText };
+
+        flyTo(map, lng, lat, 15);
+        doVibrate();
+
+        showResultCard(poi, tasks, distText, distKm, lng, lat);
+        setDiceState(false);
+        updateStatus('已找到：' + (poi.name || '目的地'));
+      } catch (err) {
+        setDiceState(false);
+        updateStatus(err && err.message === 'NO_RESULT' ? '这片区域太荒凉，换个范围试试' : '搜索失败，请重试');
+      }
+    }
+
+    let isAdventureMode = false;
+
+    function enterAdventureMode() {
+      if (!lastResult || !map) return;
+      const { poi, lng, lat, tasks } = lastResult;
+      hideResultCard();
+
+      const overlay = document.getElementById('adventure-launch-overlay');
+      overlay.style.display = 'flex';
+      overlay.classList.remove('hiding');
+      setTimeout(() => {
+        overlay.classList.add('hiding');
+        setTimeout(() => { overlay.style.display = 'none'; }, 600);
+      }, 1000);
+
+      document.getElementById('controls').classList.add('hidden');
+      document.getElementById('adventure-dest-name').textContent = poi.name || '目的地';
+      document.getElementById('adventure-bar').style.display = 'block';
+      const navLink = document.getElementById('btn-amap-nav');
+      navLink.href = 'https://uri.amap.com/navigation?to=' + lng.toFixed(5) + ',' + lat.toFixed(5) + ',' + encodeURIComponent(poi.name || '目的地') + '&mode=walking&callnative=1';
+      isAdventureMode = true;
+      renderHandbookContent();
+
+      const end = new AMapRef.LngLat(lng, lat);
+      const getStart = (cb) => {
+        if (userPosition) {
+          cb(new AMapRef.LngLat(userPosition[0], userPosition[1]));
+          return;
+        }
+        updateStatus('正在获取当前位置…');
+        const geo = new AMapRef.Geolocation({ enableHighAccuracy: true, timeout: 6000 });
+        geo.getCurrentPosition((st, res) => {
+          if (st === 'complete' && res && res.position) {
+            userPosition = [res.position.lng, res.position.lat];
+            cb(new AMapRef.LngLat(userPosition[0], userPosition[1]));
+          } else {
+            updateStatus('无法获取位置，请确保已授权定位');
+            cb(null);
+          }
+        });
+      };
+
+      getStart((start) => {
+        if (!start) return;
+        if (!walking) walking = new AMapRef.Walking({ map });
+        walking.clear();
+        const badge = document.getElementById('nav-floating-badge');
+        badge.classList.add('visible');
+        walking.search(start, end, (st, res) => {
+          if (st === 'complete' && res.routes && res.routes[0]) {
+            updateStatus('步行路线已规划，冒险开始！');
+            if (map.setFitView) map.setFitView(null, 80);
+          } else {
+            badge.classList.remove('visible');
+            updateStatus('未找到步行路线，可点击「去高德 App 导航」');
+          }
+        });
+      });
+    }
+
+    function renderHandbookContent() {
+      if (!lastResult || !lastResult.tasks) return;
+      const t = lastResult.tasks;
+      let html = '<p style="color:#ff8a9e;margin-bottom:12px">⚠️ 说话限 5 字 · 经费 ' + (t.budget || 50) + ' 元</p>';
+      html += '<h4>【主线任务】</h4><ol>';
+      (t.main || []).forEach(m => { html += '<li>' + m + '</li>'; });
+      html += '</ol>';
+      if (t.side && t.side.length) {
+        html += '<h4>【支线任务】</h4><ul>';
+        t.side.forEach(s => { html += '<li>' + s + '</li>'; });
+        html += '</ul>';
+      }
+      if (t.hidden) {
+        html += '<h4>【隐藏任务】</h4><p>' + t.hidden + '</p>';
+      }
+      document.getElementById('handbook-body').innerHTML = html;
+    }
+
+    function exitAdventureMode() {
+      isAdventureMode = false;
+      document.getElementById('adventure-bar').style.display = 'none';
+      document.getElementById('nav-floating-badge').classList.remove('visible');
+      document.getElementById('controls').classList.remove('hidden');
+      document.getElementById('handbook-modal').style.display = 'none';
+      if (walking && walking.clear) walking.clear();
+      if (resultMarker && map) { map.remove(resultMarker); resultMarker = null; }
+      lastResult = null;
+      updateStatus('今天的冒险有哪些新奇发现？');
+    }
+
+    document.getElementById('btn-handbook').addEventListener('click', () => {
+      const modal = document.getElementById('handbook-modal');
+      const body = document.getElementById('handbook-body');
+      if (body) body.scrollTop = 0;
+      modal.style.display = 'flex';
+    });
+    document.getElementById('handbook-scroll-down').addEventListener('click', () => {
+      const body = document.getElementById('handbook-body');
+      if (body) body.scrollBy({ top: 200, behavior: 'smooth' });
+    });
+    document.getElementById('handbook-close').addEventListener('click', () => {
+      document.getElementById('handbook-modal').style.display = 'none';
+    });
+    document.getElementById('handbook-mask').addEventListener('click', () => {
+      document.getElementById('handbook-modal').style.display = 'none';
+    });
+    document.getElementById('btn-finish').addEventListener('click', () => {
+      if (confirm('确定要结束本次冒险吗？今天的冒险有哪些新奇发现？')) {
+        exitAdventureMode();
+      }
+    });
+
+    document.getElementById('dice-btn').addEventListener('click', rollDice);
+    document.getElementById('btn-accept').addEventListener('click', enterAdventureMode);
+    document.getElementById('btn-redo').addEventListener('click', () => {
+      hideResultCard();
+      document.getElementById('open-amap-link').style.display = 'none';
+      if (resultMarker && map) { map.remove(resultMarker); resultMarker = null; }
+      if (walking && walking.clear) walking.clear();
+      lastResult = null;
+      rollDice();
+    });
+
+    AMapLoader.load({
+      key: AMAP_KEY,
+      version: '2.0',
+      plugins: ['AMap.PlaceSearch', 'AMap.Geolocation', 'AMap.GeometryUtil', 'AMap.Walking']
+    }).then((AMap) => {
+      AMapRef = AMap;
+      try {
+        map = new AMapRef.Map('map-container', {
+          zoom: 10,
+          center: [116.397428, 39.90923],
+          viewMode: '2D'
+        });
+        map.addControl(new AMapRef.Scale());
+        const statusEl = document.getElementById('status');
+        statusEl.innerHTML = '地图已加载，点击掷骰子开始 <span style="opacity:0.5;font-size:11px">v2.2</span>';
+        statusEl.classList.remove('error');
+      } catch (err) {
+        document.getElementById('status').textContent = '地图加载失败：请检查 Key、密钥及网络';
+        document.getElementById('status').classList.add('error');
+        console.error('地图初始化失败:', err);
+      }
+    }).catch(e => {
+      if (!map) {
+        const statusEl = document.getElementById('status');
+        statusEl.innerHTML = '地图加载失败：请检查 Key、密钥及网络 <span style="opacity:0.5;font-size:11px">v2.2</span>';
+        statusEl.classList.add('error');
+      }
+      console.error('地图加载失败:', e);
+    });
+  </script>
+</body>
+</html>
