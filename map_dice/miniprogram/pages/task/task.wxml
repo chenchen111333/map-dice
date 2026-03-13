@@ -1,0 +1,85 @@
+<view class="container" wx:if="{{tasks}}">
+  <view class="header">
+    <text class="title">今日冒险任务</text>
+    <text class="subtitle">{{addr}}</text>
+  </view>
+
+  <scroll-view scroll-y class="scroll-body">
+    <view class="section">
+      <text class="section-title">主题</text>
+      <text class="theme">{{tasks.theme}}</text>
+    </view>
+
+    <view class="section">
+      <text class="section-title">主线任务</text>
+      <view class="list" wx:for="{{tasks.main}}" wx:key="*this">
+        <text class="num">{{index + 1}}.</text>
+        <text class="item">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{tasks.challenge}}">
+      <text class="section-title">挑战题</text>
+      <text class="item block">{{tasks.challenge}}</text>
+    </view>
+
+    <view class="section">
+      <text class="section-title">支线任务</text>
+      <view class="list" wx:for="{{tasks.side}}" wx:key="*this">
+        <text class="bullet">·</text>
+        <text class="item">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{tasks.hidden && tasks.hidden.length}}">
+      <text class="section-title">隐藏任务</text>
+      <view class="list" wx:for="{{tasks.hidden}}" wx:key="*this">
+        <text class="bullet">·</text>
+        <text class="item">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">规则限制</text>
+      <view class="list" wx:for="{{tasks.rules}}" wx:key="*this">
+        <text class="bullet">·</text>
+        <text class="item">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">记录</text>
+      <view class="list" wx:for="{{tasks.record}}" wx:key="*this">
+        <text class="bullet">·</text>
+        <text class="item">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="section">
+      <text class="section-title">随机工具：步数计算</text>
+      <view class="tool-row">
+        <text>电量十位</text>
+        <input type="digit" placeholder="0-9" value="{{tens}}" bindinput="onTens" class="tool-input"/>
+      </view>
+      <view class="tool-row">
+        <text>电量个位</text>
+        <input type="digit" placeholder="0-9" value="{{ones}}" bindinput="onOnes" class="tool-input"/>
+      </view>
+      <text class="tool-result">走 {{stepCount}} 步</text>
+    </view>
+
+    <view class="section">
+      <text class="section-title">后续</text>
+      <text class="item block">写游记、写总结、拍成 vlog</text>
+    </view>
+  </scroll-view>
+
+  <view class="footer">
+    <button class="btn-copy" bindtap="copyAll">复制全部任务</button>
+  </view>
+</view>
+
+<view class="empty" wx:else>
+  <text>暂无任务，请先掷骰子</text>
+  <navigator url="/pages/index/index" class="link">返回首页</navigator>
+</view>

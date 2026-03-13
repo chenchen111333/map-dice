@@ -1,0 +1,6 @@
+/* app.wxss 全局样式 */
+page {
+  background: #1a1a2e;
+  color: #eee;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}

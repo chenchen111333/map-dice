@@ -1,0 +1,10 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "map-dice",
+  "description": "地图掷骰子 - 微信小程序版",
+  "appid": "请替换为你的小程序 AppID",
+  "setting": {
+    "urlCheck": false,
+    "es6": true
+  }
+}

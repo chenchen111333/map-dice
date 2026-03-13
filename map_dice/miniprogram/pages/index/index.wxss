@@ -1,0 +1,184 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a2e;
+}
+
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #6a7a9a;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.step-dot.active {
+  background: linear-gradient(135deg, #e94560, #ff6b6b);
+  color: #fff;
+}
+
+.step-dot.done {
+  background: rgba(29, 209, 161, 0.3);
+  color: #1dd1a1;
+}
+
+.step-line {
+  width: 24px;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.step-view {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.welcome {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.4;
+}
+
+.welcome-sub {
+  font-size: 15px;
+  color: #8a9eba;
+  margin-top: -8px;
+}
+
+.area-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.area-item {
+  padding: 20px 20px;
+  background: rgba(26, 26, 46, 0.8);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 14px;
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.area-item.selected {
+  background: rgba(233, 69, 96, 0.15);
+  border-color: #e94560;
+}
+
+.area-name {
+  font-size: 17px;
+  color: #eee;
+}
+
+.area-item.selected .area-name {
+  color: #ff6b6b;
+  font-weight: 600;
+}
+
+.step-btn {
+  padding: 18px 24px;
+  font-size: 17px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #e94560, #ff6b6b);
+  color: #fff;
+}
+
+.step-btn.start-btn {
+  margin-top: 12px;
+}
+
+.dice-btn-big {
+  padding: 36px 48px;
+  background: linear-gradient(135deg, #e94560, #ff6b6b);
+  border: none;
+  border-radius: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 8px 24px rgba(233, 69, 96, 0.35);
+}
+
+.dice-emoji {
+  font-size: 48px;
+}
+
+.dice-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.step-actions-minor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.step-actions-minor .link {
+  font-size: 14px;
+  color: #8a9eba;
+}
+
+.step-actions-minor .divider {
+  color: rgba(255, 255, 255, 0.2);
+  font-size: 12px;
+}
+
+.step-btn.secondary {
+  background: rgba(29, 209, 161, 0.2);
+  color: #1dd1a1;
+  border: 1px solid rgba(29, 209, 161, 0.5);
+}
+
+.step-btn.primary {
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  color: #fff;
+}
+
+.step-btn.text {
+  background: transparent;
+  color: #8a9eba;
+  font-size: 14px;
+}
+
+.dest-addr {
+  font-size: 16px;
+  color: #1dd1a1;
+  line-height: 1.6;
+  word-break: break-all;
+  padding: 16px;
+  background: rgba(29, 209, 161, 0.1);
+  border-radius: 12px;
+}
+
+.map {
+  flex: 1;
+  height: 300px;
+  margin: 0 16px 16px;
+  border-radius: 12px;
+}
